@@ -16,16 +16,33 @@ def _datetime_from_android_image(filename: str):
     return datetime.datetime.strptime(filename, "IMG_%Y%m%d_%H%M%S%f.jpg")
 
 
+THREEMA_FILENAME_RE = re.compile(r"threema-(\d{8}-\d{6})-.*jpg")
+
+def _datetime_from_threema_image(filename: str):
+    match = THREEMA_FILENAME_RE.match(filename)
+    if match:
+        date = match.group(1)
+        return datetime.datetime.strptime(date, "%Y%m%d-%H%M%S")
+    else:
+        raise ValueError("Threema Filename not as expected")
+
+
 def get_datetime_of(filename: str):
     if filename.startswith("IMG_"):
         return _datetime_from_android_image(filename)
     elif filename.startswith("DSC_"):
         return _datetime_from_exif_info(filename)
+    elif filename.startswith("threema-"):
+        return _datetime_from_threema_image(filename)
     else:
         raise ValueError("Unable to parse date for file {}".format(filename))
 
 
-TARGET_FORMAT_RE = re.compile(r"^\d{4}_\d{2}_\d{2}__\d{2}_\d{2}_\d{2}.*")
+def is_datetime_correct(filename: str):
+    return not filename.startswith("threema-")
+
+
+TARGET_FORMAT_RE = re.compile(r"^\d{4}_\d{2}_\d{2}__\d{2}\d{2}\d{2}.*")
 
 
 def is_target_format(filename: str):
@@ -35,9 +52,10 @@ def is_target_format(filename: str):
 
 def get_new_name_for(filename: str):
     date = get_datetime_of(filename)
-    basename = date.strftime("%Y_%m_%d__%H_%M_%S")
+    basename = date.strftime("%Y_%m_%d__%H%M%S")
+    marker = "_XXXXX" if not is_datetime_correct(filename) else ""
     extension = os.path.splitext(filename)[1].lower()
-    return "{}{}".format(basename, extension)
+    return "{}{}{}".format(basename, marker, extension)
 
 
 def rename_files(directory: str):
